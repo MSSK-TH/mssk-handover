@@ -16,16 +16,27 @@
 看到 ALL PUBLIC ASSETS OK 才继续。
 脚本会提示"私有资产缺失"——这是正常的，见第三步。
 
-════════ 第三步：等 owner 私下给你两个文件 ════════
+════════ 第三步：收 owner 发来的数据包 ════════
 
-这两样含有敏感数据，不会放在公开仓库里，owner 会单独发你：
+owner 会单独发你一个 zip（文件名类似 mssk-data-YYYYMMDD.zip，约 19 MB）。
+里面只有 3 个文件，含义如下：
 
-  /root/mssk-private/data-db.tar.gz     数据库 + WAL + 备份（约 20 MB）
-  /root/mssk-private/05-SECRETS.enc     加密凭据（约 18 KB）
+  data-db.tar.gz    数据库 + WAL + 备份（含用户 / sk- 令牌 / 渠道密钥 / 日志）
+  05-SECRETS.enc    加密凭据（生图站配置、生图执行层配置、网页版 Cookie）
+  PASSPHRASE.txt    上面那个 .enc 的解密口令
 
-口令：owner 会单独告诉你（解密 05-SECRETS.enc 用）。
-等这两个文件到位后，再做 07-MIGRATION.md 的 B3。
-在等待期间你可以先做 B1（体检）和 B2（已完成）。
+放到新机并解开（这些内容不能出现在聊天、日志、终端历史里）：
+
+  mkdir -p /root/mssk-private
+  # 先把 zip 传到 /root/ 下（scp 或 owner 给的方式），然后：
+  cd /root/mssk-private && unzip /root/mssk-data-YYYYMMDD.zip
+  ls -lh /root/mssk-private/
+  # 期望看到：data-db.tar.gz  05-SECRETS.enc  PASSPHRASE.txt
+
+做完这一步，再做 07-MIGRATION.md 的 B3（那里会用这两个文件）。
+在等包的时候你可以先做 B1（体检）和 B2（公开资产）。
+
+⚠️ PASSPHRASE.txt 等于凭据本身，解完之后立刻删掉。
 
 ════════ 第四步：读文档（严格按这个顺序和范围）════════
 
@@ -71,6 +82,6 @@
   · 新机 IP + SSH 登录方式
   · 放行 22 / 80 / 443
   · 两个域名 + A 记录（灰云直连，不要开 CDN 代理）
-  · 私下发的两个文件 + 05-SECRETS.enc 的解密口令
+  · 一个 data zip（含数据库、加密凭据、口令）
 
 遇到输出与文档不一致就停下来问 owner，不要试别的办法。

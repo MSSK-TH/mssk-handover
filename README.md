@@ -45,7 +45,7 @@ bash scripts/fetch-assets.sh
 | `console.tar.gz` | 18.4 MB | 控制台前端产物 | 网站白屏 |
 | `mssk-image-web-webp.tar.gz` | 83 MB | 生图站镜像（Hub 上没有） | 生图站起不来 |
 
-**私有部分**（**不在仓库里**，owner 会单独发给你，放到 `/root/mssk-private/`）：
+**私有部分**（**不在仓库里**，owner 会发你一个 zip，解开后放到 `/root/mssk-private/`）：
 
 | 什么 | 大小 | 是什么 | 备注 |
 |---|---|---|---|

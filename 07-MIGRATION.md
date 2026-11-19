@@ -169,6 +169,8 @@ ls -lh /root/mssk-private/
 #   data-db.tar.gz     05-SECRETS.enc
 
 mkdir -p /opt/mssk/new-api/data
+# owner 发的 zip 解开后，这里应有三个文件：
+#   data-db.tar.gz  05-SECRETS.enc  PASSPHRASE.txt
 tar xzf /root/mssk-private/data-db.tar.gz -C /opt/mssk/new-api/data
 chown -R 1000:1000 /opt/mssk/new-api/data 2>/dev/null || true
 ls -lh /opt/mssk/new-api/data/one-api.db*      # 期望 db ~119MB + wal
