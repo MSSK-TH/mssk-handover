@@ -210,7 +210,7 @@ echo | openssl s_client -connect api.example.com:443 -servername api.example.com
 
 | 情况 | 做法 |
 |---|---|
-| 需要隐藏源站 IP（防攻击） | 改成 Cloudflare 橙云 + CF Origin 证书，见 `README-CERT.md` 方案 B |
+| 需要隐藏源站 IP（防攻击） | 改成 Cloudflare 橙云 + CF Origin 证书，见本文「八之补充」 |
 | 目标用户在大陆且直连质量差 | 上付费 CDN / 专线；**免费橙云帮不上，反而更慢** |
 | 服务器搬回国内 | 域名必须先 ICP 备案，否则 80/443 被拦 |
 | 想用非标端口（如 9443） | Caddyfile 改 `https_port`，所有客户端地址跟着改；CF 免费版只代理 80/443 |
@@ -258,3 +258,42 @@ Caddy 启动 10~60 秒后日志出现：certificate obtained successfully
 失败先看：DNS 生效没 / 80 通没 / 是不是橙云 / 有没有撞频率限制
 证书存 /opt/mssk/caddy/data/，重建容器不丢
 ```
+
+## 八之补充：如果你确实要走 Cloudflare（方案 B 的具体做法）
+
+只在"必须隐藏源站 IP"或 owner 明确要求时用。步骤：
+
+1. Cloudflare 面板 → SSL/TLS → Origin Server → 生成证书（覆盖两个域名）；
+2. 放到 `/opt/mssk/caddy/certs/`：
+   ```
+   <域名>.crt / <域名>.key
+   ```
+3. `caddy.yml` 给 caddy 加一行挂载：`- /opt/mssk/caddy/certs:/certs:ro`
+4. `Caddyfile` 里给两个站点加：
+   ```
+   tls /certs/<域名>.crt /certs/<域名>.key
+   ```
+5. Cloudflare 上把两条记录改成**橙云**，SSL 模式设 **Full (strict)**。
+
+**代价**：多一跳（大陆访问常绕美西）、CF 免费版 100 秒连接上限（生图/长对话会被掐）、
+证书要手动续（15 年有效期，但换证时容易忘）。
+
+## 九之补充：临时验收用的自签（方案 C）
+
+赶时间、域名还没买时可以：
+
+```
+:443 {
+    tls internal
+    ...
+}
+```
+
+浏览器会报警，只用于 owner 验收；上线前必须换回正式域名。
+
+## 附：证书续期与备份
+
+- 续期：Caddy 自动（到期前 30 天），不用管。
+- 位置：`/opt/mssk/caddy/data/`（容器内 `/data`，已挂载）。
+  **重建容器不丢证书**，也不浪费 Let's Encrypt 签发配额。
+- 备份：迁移前把该目录一起打包，可省一次申请。

@@ -18,7 +18,7 @@
   看到 ALL ASSETS OK 才继续。
 
 【第二步：读两页，别读多】
-  README-FIRST.md    —— 这套系统是什么、有哪些硬约束
+  README.md    —— 这套系统是什么、有哪些硬约束
   07-MIGRATION.md    —— 执行主线：阶段 A → B1…B8 → C
 
 【第三步：执行】
