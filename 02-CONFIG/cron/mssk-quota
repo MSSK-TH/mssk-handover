@@ -1,0 +1,3 @@
+# 每 10 分钟刷新 Codex 订阅额度快照 → /opt/mssk/console/codex-quota.json
+# 若目标机在境内且直连 chatgpt.com 不通，在行首加 MSSK_SOCKS=127.0.0.1:1080
+*/10 * * * * root MSSK_DB=/opt/mssk/new-api/data/one-api.db MSSK_OUT=/opt/mssk/console/codex-quota.json /usr/bin/python3 /opt/mssk/tools/codex-quota.py >/dev/null 2>&1

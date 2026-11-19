@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MSSK 生图</title>
+<link rel="icon" href="/assets/mssk-logo.svg" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+<div class="wall"></div>
+
+<!-- 服务端更新提示：部署后前端会轮询 /api/version，变了就倒计时自动刷新 -->
+<div class="update-bar" id="updateBar" hidden>
+  <span id="updateText">配置已更新，8 秒后自动刷新…</span>
+  <button class="act" id="updateNow" type="button">立即刷新</button>
+</div>
+
+<!-- ================= 登录 ================= -->
+<div id="login" class="login-wrap" hidden>
+  <form class="login-card" id="loginForm">
+    <img src="/assets/mssk-logo.svg" alt="MSSK" class="login-logo" />
+    <h1>MSSK 生图</h1>
+    <p class="login-sub">用团队的 GPT 通道直接出图</p>
+    <label class="field" id="userField" hidden>
+      <span>用户名</span>
+      <input id="loginUser" type="text" autocomplete="username" placeholder="你的名字" />
+    </label>
+    <label class="field">
+      <span id="pwLabel">口令</span>
+      <input id="loginPassword" type="password" autocomplete="current-password" placeholder="输入访问口令" required />
+    </label>
+    <button class="btn btn-primary" type="submit">进入</button>
+    <div class="login-hint muted" id="loginHint" hidden></div>
+    <div class="login-err" id="loginErr" hidden></div>
+  </form>
+</div>
+
+<!-- ================= 主界面 ================= -->
+<div id="app" class="app" hidden>
+  <aside class="sidebar">
+    <div class="brand">
+      <img src="/assets/mssk-logo.svg" alt="" />
+      <div>
+        <div class="brand-name">MSSK 生图</div>
+        <div class="brand-sub">GPT 图像通道</div>
+      </div>
+    </div>
+    <button class="btn btn-new" id="btnNew">＋ 新建对话</button>
+    <div class="conv-list" id="convList"></div>
+    <div class="side-foot">
+      <span id="whoami" class="muted"></span>
+      <button class="link" id="btnLogout">退出</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn only-mobile" id="btnMenu" title="对话列表">☰</button>
+      <h1 id="convTitle">新对话</h1>
+      <div class="top-actions">
+        <div class="inline-field" title="用哪个模型生图">
+          <span class="muted">模型</span>
+          <div id="modelSelect"></div>
+        </div>
+      </div>
+    </header>
+
+    <section class="stream" id="stream">
+      <div class="empty" id="empty">
+        <img src="/assets/chibi.png" alt="" class="empty-art" />
+        <h2>描述你想要的画面</h2>
+        <p class="muted"><b>上下文</b>：对话里的文字自动带上，模型记得你说过的设定。<br /><b>参考图</b>：图片要显式放进托盘才会影响出图。</p>
+        <div class="samples" id="samples"></div>
+      </div>
+    </section>
+
+    <footer class="composer">
+      <div class="composer-box" id="composerBox">
+        <div class="ref-tray" id="refTray" hidden>
+          <div class="ref-list" id="refList"></div>
+          <div class="ref-tray-foot">
+            <span class="muted" id="refHint"></span>
+            <button class="link" id="btnClearRefs" type="button">清空</button>
+          </div>
+        </div>
+        <textarea id="prompt" rows="1" placeholder="描述画面…  Enter 发送，Shift+Enter 换行（可以把参考图拖进来或 Ctrl+V 粘贴）"></textarea>
+        <div class="controls">
+          <div class="group">
+            <button class="chip chip-ref" id="btnRef" type="button" title="上传 1~4 张参考图">＋ 参考图</button>
+            <input type="file" id="refInput" accept="image/png,image/jpeg,image/webp" multiple hidden />
+          </div>
+          <div class="group" id="ratioGroup">
+            <span class="group-label">比例</span>
+            <button class="chip" data-ratio="1:1" title="画布 1:1（正方形）｜ 实测输出 1254×1254">1:1</button>
+            <button class="chip active" data-ratio="16:9" title="画布 16:9（横）｜ 实测输出 1672×941">16:9</button>
+            <button class="chip" data-ratio="9:16" title="画布 9:16（竖）｜ 实测输出 941×1672">9:16</button>
+            <button class="chip" data-ratio="4:3" title="画布 4:3 ｜ 实测输出 1448×1086">4:3</button>
+            <button class="chip" data-ratio="auto" id="ratioAuto" title="画布宽高比自动适配参考图1 —— 改图时用这个最稳，输出不会变形（先放一张参考图才会亮）">适应原图</button>
+            <button class="chip" data-ratio="" title="不指定比例：由模型根据你的提示词自己决定画布形状（可能横也可能竖）">默认</button>
+          </div>
+          <div class="group" id="bgGroup">
+            <span class="group-label">底色</span>
+            <button class="chip" id="btnAlpha" title="要求透明底（PNG 带 alpha 通道）。现在会把 background=transparent 作为真参数发给上游（原生端点支持），同时仍写进提示词兜底。放着不动就是普通不透明底。">透明底</button>
+          </div>
+          <div class="group" id="pipelineGroup">
+            <span class="group-label">生图管线</span>
+            <button class="chip active" data-pipeline="web"
+              title="网页管线（gpt-image-2）：走 ChatGPT 网页那套 picture_v2，通过率更高（实测原生全拒的图它能出）；失败会自动回退原生端点。代价是慢一些（约 30s，回退时约 55s）。">网页优先</button>
+            <button class="chip" data-pipeline="codex"
+              title="Codex 原生（codex-gpt-image-2）：只走订阅 OAuth 的 /codex/images/*，速度快（约 20-25s），但内容安全判定更严（有些图会被拒，不会回退网页管线）。">Codex 原生</button>
+            <span class="muted" id="pipelineModel" style="margin-left:6px;font-size:11.5px"></span>
+          </div>
+          <div class="group" id="modeGroup">
+            <span class="group-label">网页模式</span>
+            <button class="chip active" data-mode="chat"
+              title="聊天模式（chat）：实测生图通过率明显更高（同一张图 3/3 通过）。默认用这个。">聊天</button>
+            <button class="chip" data-mode="work"
+              title="工作模式（work）：ChatGPT 的 Work 表面，生图更容易被判违规（实测 2/3 被拒）。只有需要配合 Work 场景时才选。">工作</button>
+          </div>
+          <div class="group">
+            <span class="group-label">推理</span>
+            <div id="effort" title="思考程度，对应 Codex 的 model_reasoning_effort（越高越慢越贵）"></div>
+          </div>
+          <button class="btn btn-primary send" id="btnSend">生成</button>
+        </div>
+      </div>
+      <div class="hint muted" id="hint"></div>
+    </footer>
+  </main>
+</div>
+
+<div class="lightbox" id="lightbox" hidden>
+  <div class="lb-bar">
+    <span id="lbInfo" class="muted"></span>
+    <button class="act" id="lbZoom" type="button">按原尺寸看</button>
+    <button class="act" id="lbDownload" type="button">下载原图</button>
+    <button class="act" id="lbClose" type="button">关闭</button>
+  </div>
+  <div class="lb-stage" id="lbStage"><img id="lightboxImg" alt="" /></div>
+</div>
+<div class="toasts" id="toasts"></div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

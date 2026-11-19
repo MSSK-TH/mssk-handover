@@ -1,0 +1,7 @@
+# ⚠️ 默认**不启用**。本部署冻结在 new-api v1.0.0-rc.51。
+# 只有 owner 明确要求升级时才执行：
+#   1) cp /opt/mssk/cron-available/new-api-autoupdate.disabled /etc/cron.d/new-api-autoupdate
+#   2) 确认 /opt/mssk/scripts/new-api-autoupdate.sh 存在且可执行
+#   3) 升级前先备份 /opt/mssk/new-api/data/one-api.db
+# 启用后每天 04:30 自动升级镜像——这会破坏版本冻结，出问题很难归因。
+#30 4 * * * root /opt/mssk/scripts/new-api-autoupdate.sh --apply >> /var/log/new-api-autoupdate.log 2>&1

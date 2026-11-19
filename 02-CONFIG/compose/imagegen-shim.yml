@@ -1,0 +1,20 @@
+# imagegen-shim：生图执行层（网页版 Cookie + 原生两种模式）
+# 单机合并后只需被本机 new-api 调用，因此只绑 127.0.0.1:8899，不再对公网开放。
+services:
+  imagegen-shim:
+    image: node:22-alpine
+    container_name: imagegen-shim
+    restart: unless-stopped
+    mem_limit: 400m
+    working_dir: /app
+    command: ["node", "server.mjs"]
+    network_mode: host
+    env_file:
+      - /opt/mssk/secrets/imagegen-shim.env
+    volumes:
+      - /opt/mssk/shim:/app:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"

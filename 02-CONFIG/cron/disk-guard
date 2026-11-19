@@ -1,0 +1,2 @@
+# 磁盘水位守护（低于阈值时清理日志/临时文件并记录）
+*/10 * * * * root /opt/mssk/tools/disk-guard.sh

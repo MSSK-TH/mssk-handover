@@ -1,0 +1,154 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Internal deployment palette.
+ *
+ * These are the exact computed dark values of the previous console build
+ * (the Sep static bundle served from /opt/mssk/console), captured from the live
+ * page: dark background, pink primary/ring, pink chart-1, blue/teal/violet
+ * overview accents, Public Sans, plus the fixed full-screen wallpaper.
+ *
+ * Unlayered on purpose: unlayered declarations win over anything inside
+ * @layer (theme.css / theme-presets.css), so user-chosen presets cannot drift
+ * the internal deployment away from this palette.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+.dark {
+  --background: lab(2.70846% 0.717804 -1.36666);
+  --foreground: lab(95.94% -0.0000298023 0);
+  --card: lab(7.64553% 2.15574 -3.85171);
+  --card-foreground: lab(95.94% -0.0000298023 0);
+  --popover: lab(9.93614% 2.55004 -4.49984);
+  --popover-foreground: lab(95.94% -0.0000298023 0);
+  --primary: lab(65.8611% 56.1088 -10.8426);
+  --primary-foreground: lab(100% 0 0);
+  --secondary: lab(13.9854% 2.72162 -4.82736);
+  --secondary-foreground: lab(87.7337% 16.5218 -3.13218);
+  --muted: lab(11.7016% 2.16304 -3.87045);
+  --muted-foreground: lab(74.48% 0 0);
+  /* Hard-coded on purpose: the previous build left these two as color-mix()
+   * and Chrome resolved them to #331c27. LightningCSS pre-computes color-mix()
+   * at build time and produced #2a1e33 (visibly purple instead of pink), so the
+   * browser-resolved value is pinned here instead of the expression. */
+  --accent: #331c27;
+  --accent-foreground: #fafafa;
+  --border: #ffffff1a;
+  --input: #ffffff2b;
+  --ring: #f472b6;
+  --destructive: #ff6568;
+  --destructive-foreground: #fafafa;
+  --success: #00bb7f;
+  --warning: #f99c00;
+  --chart-1: #fb83bf;
+  --chart-2: #00c9d1;
+  --chart-3: #d097ea;
+  --chart-4: #e088e5;
+  --chart-5: #5ccb89;
+  --overview-accent-1: #4ca9ff;
+  --overview-accent-2: #00a3aa;
+  --overview-accent-3: #9095e8;
+  --sidebar: #100e13;
+  --sidebar-foreground: #eee;
+  --sidebar-primary: #f472b6;
+  --sidebar-primary-foreground: #fff;
+  --sidebar-accent: #331c27;
+  --sidebar-accent-foreground: #ffe7f1;
+  --sidebar-border: #ffffff1c;
+  --sidebar-ring: #f472b6;
+  --skeleton-base: #201e24;
+  --skeleton-highlight: #3a323c;
+}
+
+:root {
+  --radius: 1rem;
+  --font-sans: 'Public Sans', sans-serif;
+  --font-body: 'Public Sans', sans-serif;
+}
+
+/* The previous build declared `"Public Sans"` but only registered the
+ * `Public Sans Variable` family, so it actually rendered with the browser's
+ * default sans-serif. Two declarations here keep that exact rendering: the
+ * variable family is never matched, and the fallback wins.
+ * `body[data-theme-font]` outranks the `[data-theme-font='sans']` preset rule. */
+:root[data-theme-font],
+body[data-theme-font] {
+  --font-body: 'Public Sans', sans-serif;
+}
+
+body[data-theme-font] {
+  font-family: 'Public Sans', sans-serif;
+}
+
+/* The wallpaper itself is applied from index.html: the bundler would try to
+ * resolve url() literals declared here, while the file is served straight from
+ * public/static/image/. */
+
+/* ─── Frosted glass, copied verbatim from the previous console build ───
+ * The previous build tinted the page body transparent, kept it at 52%, the
+ * cards at 56~62% with a 22px/18px blur, the sidebar at 66% with a 20px blur
+ * and popovers at 78%. That is what lets the wallpaper read through the UI. */
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+.dark body {
+  background-color: transparent;
+}
+
+.dark .min-h-svh.bg-background {
+  background-color: color-mix(in oklch, var(--background) 52%, transparent);
+}
+
+.dark .bg-card {
+  background-color: color-mix(in oklch, var(--card) 56%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(165%);
+  backdrop-filter: blur(22px) saturate(165%);
+}
+
+.dark [data-slot='card'] {
+  background-color: color-mix(in oklch, var(--card) 62%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border-color: lab(100% 0 0 / 0.12);
+}
+
+.dark [data-slot='sidebar'],
+.dark [data-slot='sidebar-container'] {
+  background-color: color-mix(in oklch, var(--sidebar) 66%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+}
+
+.dark [data-slot='sidebar-inset'] {
+  background: transparent;
+}
+
+.dark .bg-popover {
+  background-color: color-mix(in oklch, var(--popover) 78%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(165%);
+  backdrop-filter: blur(22px) saturate(165%);
+}
+
+.dark .border-border,
+.dark [class*='border-border'] {
+  border-color: lab(100% 0 0 / 0.11);
+}

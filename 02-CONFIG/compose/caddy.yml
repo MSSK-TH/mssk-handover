@@ -1,0 +1,18 @@
+# Caddy：唯一对外入口（80/443）
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    mem_limit: 150m
+    network_mode: host
+    volumes:
+      - /opt/mssk/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /opt/mssk/console:/srv/console:ro
+      - ./data:/data
+      - ./config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"

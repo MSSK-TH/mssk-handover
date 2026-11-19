@@ -1,0 +1,115 @@
+# ============================================================================
+#  MSSK 中转站 · 单机合并版 Caddyfile
+#
+#  ⚠️ 先读 07-MIGRATION.md 的第 3 阶段再改这个文件。
+#
+#  本文件是三处配置合并后的结果：
+#    · 旧阿里云 :8080（Cloudflare 隧道入口）
+#    · 旧阿里云 relay.<域名>:9443（给 DMIT 门面回源用，已删除）
+#    · 旧 DMIT 反代（全部流量转回阿里云，已删除——因为现在只有一台机器）
+#
+#  替换占位符（全文只有这两个）：
+#    __DOMAIN_RELAY__  →  例如 api.example.com      （控制台 + /api + /v1）
+#    __DOMAIN_IMAGE__  →  例如 image.example.com    （生图站）
+#
+#  证书：默认让 Caddy 自动向 Let's Encrypt 申请（需要 80 与 443 从公网可达，
+#        且域名 A 记录已指向本机）。若改用 Cloudflare Origin 证书，
+#        见 02-CONFIG/caddy/README-CERT.md。
+# ============================================================================
+
+{
+	email __ACME_EMAIL__
+	https_port 443
+	http_port 80
+
+	servers {
+		protocols h1 h2
+	}
+}
+
+# ------------------------------------------------------------------ 控制台 + API
+__DOMAIN_RELAY__ {
+	encode zstd gzip
+
+	# 中转站 API（Codex 客户端 / 技能走这里）
+	# 注意：3002 是 relay-keepalive，它再做 SSE 保活并转发到 new-api:3001。
+	#       **不要**把它直接指到 3001，否则长响应会被中间层掐断。
+	handle /v1/* {
+		reverse_proxy 127.0.0.1:3002 {
+			flush_interval -1
+			transport http {
+				read_timeout 900s
+				write_timeout 900s
+			}
+		}
+	}
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:3001
+	}
+
+	# 静态资源：文件名带内容 hash，可长缓存。
+	# 旧配置这里是 no-store（为了改完立刻生效），代价是每次打开都重下 1.6 MB。
+	# 若你希望恢复旧行为，把下面 max-age 改成 "no-store, must-revalidate"。
+	handle /static/* {
+		header Cache-Control "public, max-age=31536000, immutable"
+		root * /srv/console
+		file_server
+	}
+
+	# 订阅额度快照（由 cron 每 10 分钟生成），必须不缓存
+	handle /codex-quota.json {
+		root * /srv/console
+		header Content-Type application/json
+		header Cache-Control "no-store, must-revalidate"
+		file_server
+	}
+
+	# SPA 兜底
+	handle {
+		root * /srv/console
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# ------------------------------------------------------------------ 生图站
+__DOMAIN_IMAGE__ {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8788 {
+		flush_interval -1
+		transport http {
+			read_timeout 900s
+			write_timeout 900s
+		}
+	}
+}
+
+# ============================================================================
+#  可选：如果你仍然想用 Cloudflare 隧道（cloudflared）而不是直接暴露 443，
+#  把下面这段取消注释，并让 cloudflared 指向 127.0.0.1:8080。
+#  用了隧道就不需要上面两个域名的 443 站点，也不需要 ACME 证书。
+# ============================================================================
+# :8080 {
+# 	bind 127.0.0.1
+# 	encode zstd gzip
+# 	handle /v1/* {
+# 		reverse_proxy 127.0.0.1:3002 {
+# 			flush_interval -1
+# 			transport http { read_timeout 900s write_timeout 900s }
+# 		}
+# 	}
+# 	handle /api/* { reverse_proxy 127.0.0.1:3001 }
+# 	handle /static/* {
+# 		header Cache-Control "public, max-age=31536000, immutable"
+# 		root * /srv/console
+# 		file_server
+# 	}
+# 	handle /codex-quota.json {
+# 		root * /srv/console
+# 		header Content-Type application/json
+# 		header Cache-Control "no-store, must-revalidate"
+# 		file_server
+# 	}
+# 	handle { root * /srv/console; try_files {path} /index.html; file_server }
+# }

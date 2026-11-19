@@ -1,0 +1,19 @@
+services:
+  image-web:
+    image: mssk/image-web:webp
+    container_name: image-web-aliyun
+    restart: unless-stopped
+    mem_limit: 640m
+    working_dir: /app
+    command: ["node", "server.mjs"]
+    network_mode: host            # 容器与宿主共用网络，可直接访问 127.0.0.1:3001
+    env_file:
+      - ./image-web.env
+    volumes:
+      - /opt/mssk/image-web:/app:ro
+      - /opt/mssk/data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"

@@ -1,0 +1,20 @@
+services:
+  relay-keepalive:
+    image: node:22-alpine
+    container_name: relay-keepalive
+    restart: unless-stopped
+    mem_limit: 512m
+    working_dir: /app
+    command: ["node", "server.mjs"]
+    network_mode: host
+    environment:
+      - PORT=3002
+      - UPSTREAM_PORT=3001
+      - PING_MS=10000
+    volumes:
+      - /opt/mssk/relay-keepalive:/app:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"

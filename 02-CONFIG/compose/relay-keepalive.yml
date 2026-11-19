@@ -1,0 +1,22 @@
+# relay-keepalive：/v1 的 SSE 保活代理（3002 → 3001）
+# ⚠️ 不能省。没有它，生图与长对话会在中间层 100 秒超时被掐断。
+services:
+  relay-keepalive:
+    image: node:22-alpine
+    container_name: relay-keepalive
+    restart: unless-stopped
+    mem_limit: 256m
+    working_dir: /app
+    command: ["node", "server.mjs"]
+    network_mode: host
+    environment:
+      - PORT=3002
+      - UPSTREAM_PORT=3001
+      - PING_MS=10000
+    volumes:
+      - /opt/mssk/relay-keepalive:/app:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"

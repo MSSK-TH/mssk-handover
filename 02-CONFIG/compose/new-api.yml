@@ -1,0 +1,20 @@
+# new-api：网关本体，只绑本机 3001（对外由 caddy 暴露）
+services:
+  new-api:
+    image: calciumion/new-api:v1.0.0-rc.51   # 版本冻结，不要改成 latest
+    container_name: new-api
+    restart: unless-stopped
+    mem_limit: 900m
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - /opt/mssk/new-api/data:/data
+    environment:
+      - TZ=Asia/Shanghai
+      - GOMEMLIMIT=600MiB
+      - GOGC=50
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"

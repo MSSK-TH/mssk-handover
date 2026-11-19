@@ -1,0 +1,20 @@
+# 生图站前端 + 后端（8788）
+services:
+  image-web:
+    image: mssk/image-web:webp
+    container_name: image-web
+    restart: unless-stopped
+    mem_limit: 640m
+    working_dir: /app
+    command: ["node", "server.mjs"]
+    network_mode: host            # 需要直连 127.0.0.1:3001 (new-api)
+    env_file:
+      - /opt/mssk/secrets/image-web.env
+    volumes:
+      - /opt/mssk/image-web:/app:ro
+      - /opt/mssk/data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"
