@@ -14,7 +14,7 @@ set -euo pipefail
 # 兼容 GH_TOKEN（gh CLI 优先读它）
 if [ -n "${GITHUB_TOKEN:-}" ] && [ -z "${GH_TOKEN:-}" ]; then export GH_TOKEN="$GITHUB_TOKEN"; fi
 
-REPO="${REPO:-__GITHUB_OWNER__/__GITHUB_REPO__}"
+REPO="${REPO:-MSSK-TH/mssk-handover}"
 TAG="${TAG:-v1.0.0}"
 DEST="${DEST:-/root/mssk-assets}"
 DOWNLOAD_ONLY=0

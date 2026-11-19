@@ -1,37 +1,71 @@
 你要把一套「AI API 中转站 + 生图站」部署到一台新的 Linux VPS 上（境外，最低 2 核 4 GB）。
+下面每一步都是明确的，不要跳步，也不要自己改方案。
 
-【第一步：拿到代码和大文件】
-仓库是私有的，owner 会给你一个只读令牌（就是一串 github_pat_ 开头的字符）。
+════════ 第一步：拿代码 ════════
+
+仓库是私有的，owner 会给你一串只读令牌（github_pat_ 开头）。
 
   export GH_TOKEN=<owner 给你的只读令牌>
 
-  # 方式 A（有 gh CLI，推荐）
-  gh repo clone __GITHUB_OWNER__/__GITHUB_REPO__ /root/mssk-handover
+  # 有 gh CLI
+  gh repo clone MSSK-TH/mssk-handover /root/mssk-handover
 
-  # 方式 B（没有 gh CLI）
-  git clone https://oauth2:$GH_TOKEN@github.com/__GITHUB_OWNER__/__GITHUB_REPO__.git /root/mssk-handover
-  git -C /root/mssk-handover remote set-url origin https://github.com/__GITHUB_OWNER__/__GITHUB_REPO__.git   # 清掉令牌痕迹
+  # 没有 gh CLI
+  git clone https://oauth2:$GH_TOKEN@github.com/MSSK-TH/mssk-handover.git /root/mssk-handover
+  git -C /root/mssk-handover remote set-url origin https://github.com/MSSK-TH/mssk-handover.git
+
+════════ 第二步：拉大文件 ════════
 
   cd /root/mssk-handover
-  bash scripts/fetch-assets.sh        # 拉 4 个大文件（约 121 MB）并校验 sha256
+  bash scripts/fetch-assets.sh
 
-  看到 ALL ASSETS OK 才继续。
+它会下载 4 个资产（约 121 MB）、校验 sha256、并解到 /opt/mssk/。
+看到 ALL ASSETS OK 才继续；失败按脚本提示处理，不要手工拼。
 
-【第二步：读两页，别读多】
-  README.md    —— 这套系统是什么、有哪些硬约束
-  07-MIGRATION.md    —— 执行主线：阶段 A → B1…B8 → C
+════════ 第三步：读文档（严格按这个顺序和范围）════════
 
-【第三步：执行】
-  按 07-MIGRATION.md 走，每个 CHECKPOINT 停下来，把该步要求的结果发给 owner，等他确认再继续。
+必读，顺序不能换：
 
-【四条硬约束，违反会出事故】
-  1. 不要在新机器上编译任何前端代码（产物已在 console.tar.gz 里，解包即用）
-  2. 不要改 new-api 镜像版本（冻结在 v1.0.0-rc.51），不要启用自动升级
-  3. /v1 必须经过 relay-keepalive(3002) 再到 new-api(3001)，不能直连 3001
-  4. 数据库必须 one-api.db 与 one-api.db-wal 成对替换，只换 db 会丢最近写入
+  1) README.md          —— 导航 + 8 条硬约束 + 大文件清单。5 分钟
+  2) 07-MIGRATION.md    —— 执行主线。通读一遍再动手，做的时候按阶段边做边查
 
-【需要 owner 配合的四件事（在 00-YOU-DO-THIS.md，可直接转给他）】
-  新机 IP+SSH、放行 22/80/443、两个域名 + A 记录、05-SECRETS.enc 的解密口令
-  域名不会配 → 把 02-CONFIG/caddy/DOMAIN-AND-TLS-GUIDE.md 发给他，里面有点击级步骤
+按需查阅（不要预先读，遇到再翻）：
 
-遇到输出与文档不一致就停下来问 owner，不要自己试别的办法。
+  · 域名 / 证书卡住时（最常卡的地方）
+      02-CONFIG/caddy/DOMAIN-AND-TLS-GUIDE.md    ← 点击级步骤，也可直接转给 owner
+  · B8 阶段要测"功能真的能用吗"
+      08-VERIFY/FUNCTIONAL-TEST.md               ← 四层测试 + 请求间隔
+  · 出事了
+      09-ROLLBACK.md
+  · 要向 owner 索取资源
+      00-OWNER-ACTIONS.md
+  · 想知道某个组件是干什么的
+      01-BACKGROUND.md
+
+不用读：02-CONFIG/ 里的配置文件（照 07 的命令复制即可）、04-DATA/README.md、
+03-APP/new-api-patch/README.md（只有将来改前端才看）。
+
+════════ 第四步：执行 ════════
+
+按 07-MIGRATION.md 的阶段 A → B1…B8 → C 走。
+每个 CHECKPOINT 停下来，把该步要求的结果发给 owner，等他确认再继续。
+
+════════ 八条硬约束（违反会出事故）════════
+
+  1. 不在新机器上编译任何前端（产物在 console.tar.gz 里，解包即用）
+  2. 不改 new-api 镜像版本（冻结 v1.0.0-rc.51），不启用 new-api-autoupdate
+  3. /v1 必须经过 relay-keepalive:3002 再到 new-api:3001，不能直连 3001
+  4. 数据库 one-api.db 与 one-api.db-wal 必须成对替换
+  5. 改任何配置前先备份，并留下回滚命令
+  6. DNS 由 owner 改，你不要动
+  7. 不把 05-SECRETS 内容贴到聊天/日志/终端历史
+  8. 测试请求串行、有间隔（文本 10s / 流式 30s / 生图 60s），失败最多重试 2 次
+
+════════ 需要 owner 配合的四件事（可把 00-YOU-DO-THIS.md 直接转给他）════════
+
+  · 新机 IP + SSH 登录方式
+  · 放行 22 / 80 / 443
+  · 两个域名 + A 记录（灰云直连，不要开 CDN 代理）
+  · 05-SECRETS.enc 的解密口令
+
+遇到输出与文档不一致就停下来问 owner，不要试别的办法。
