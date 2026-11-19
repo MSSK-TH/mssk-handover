@@ -3,30 +3,35 @@
 
 ════════ 第一步：拿代码 ════════
 
-仓库是私有的，owner 会给你一串只读令牌（github_pat_ 开头）。
+仓库是公开的，直接 clone，不需要任何令牌。
 
-  export GH_TOKEN=<owner 给你的只读令牌>
-
-  # 有 gh CLI
-  gh repo clone MSSK-TH/mssk-handover /root/mssk-handover
-
-  # 没有 gh CLI
-  git clone https://oauth2:$GH_TOKEN@github.com/MSSK-TH/mssk-handover.git /root/mssk-handover
-  git -C /root/mssk-handover remote set-url origin https://github.com/MSSK-TH/mssk-handover.git
-
-════════ 第二步：拉大文件 ════════
-
+  git clone https://github.com/MSSK-TH/mssk-handover.git /root/mssk-handover
   cd /root/mssk-handover
+
+════════ 第二步：拉公开资产（约 101 MB）════════
+
   bash scripts/fetch-assets.sh
 
-它会下载 4 个资产（约 121 MB）、校验 sha256、并解到 /opt/mssk/。
-看到 ALL ASSETS OK 才继续；失败按脚本提示处理，不要手工拼。
+它会从 Release 下载控制台产物和生图镜像、校验 sha256、解到 /opt/mssk/。
+看到 ALL PUBLIC ASSETS OK 才继续。
+脚本会提示"私有资产缺失"——这是正常的，见第三步。
 
-════════ 第三步：读文档（严格按这个顺序和范围）════════
+════════ 第三步：等 owner 私下给你两个文件 ════════
+
+这两样含有敏感数据，不会放在公开仓库里，owner 会单独发你：
+
+  /root/mssk-private/data-db.tar.gz     数据库 + WAL + 备份（约 20 MB）
+  /root/mssk-private/05-SECRETS.enc     加密凭据（约 18 KB）
+
+口令：owner 会单独告诉你（解密 05-SECRETS.enc 用）。
+等这两个文件到位后，再做 07-MIGRATION.md 的 B3。
+在等待期间你可以先做 B1（体检）和 B2（已完成）。
+
+════════ 第四步：读文档（严格按这个顺序和范围）════════
 
 必读，顺序不能换：
 
-  1) README.md          —— 导航 + 8 条硬约束 + 大文件清单。5 分钟
+  1) README.md          —— 导航 + 8 条硬约束。5 分钟
   2) 07-MIGRATION.md    —— 执行主线。通读一遍再动手，做的时候按阶段边做边查
 
 按需查阅（不要预先读，遇到再翻）：
@@ -45,7 +50,7 @@
 不用读：02-CONFIG/ 里的配置文件（照 07 的命令复制即可）、04-DATA/README.md、
 03-APP/new-api-patch/README.md（只有将来改前端才看）。
 
-════════ 第四步：执行 ════════
+════════ 第五步：执行 ════════
 
 按 07-MIGRATION.md 的阶段 A → B1…B8 → C 走。
 每个 CHECKPOINT 停下来，把该步要求的结果发给 owner，等他确认再继续。
@@ -58,7 +63,7 @@
   4. 数据库 one-api.db 与 one-api.db-wal 必须成对替换
   5. 改任何配置前先备份，并留下回滚命令
   6. DNS 由 owner 改，你不要动
-  7. 不把 05-SECRETS 内容贴到聊天/日志/终端历史
+  7. 不把 05-SECRETS 的内容、也不把 /root/mssk-private/ 里的东西贴到聊天/日志/终端历史
   8. 测试请求串行、有间隔（文本 10s / 流式 30s / 生图 60s），失败最多重试 2 次
 
 ════════ 需要 owner 配合的四件事（可把 00-YOU-DO-THIS.md 直接转给他）════════
@@ -66,6 +71,6 @@
   · 新机 IP + SSH 登录方式
   · 放行 22 / 80 / 443
   · 两个域名 + A 记录（灰云直连，不要开 CDN 代理）
-  · 05-SECRETS.enc 的解密口令
+  · 私下发的两个文件 + 05-SECRETS.enc 的解密口令
 
 遇到输出与文档不一致就停下来问 owner，不要试别的办法。

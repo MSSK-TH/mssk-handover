@@ -1,106 +1,118 @@
 #!/usr/bin/env bash
-# 拉取部署所需的大文件（GitHub Release 附件），校验并解包到正确位置。
+# 准备部署资产。
+#
+#   公开部分（从 Release 自动拉）：console.tar.gz、mssk-image-web-webp.tar.gz
+#   私下部分（owner 单独给你）：  data-db.tar.gz、05-SECRETS.enc + 解密口令
 #
 # 用法：
-#   bash scripts/fetch-assets.sh                       # 需要 gh CLI 已登录
-#   GITHUB_TOKEN=github_pat_xxx bash scripts/fetch-assets.sh   # 没有 gh 时用只读令牌
-#   GH_TOKEN=github_pat_xxx bash scripts/fetch-assets.sh       # 同上（gh 也认这个名字）
-#   bash scripts/fetch-assets.sh --download-only        # 只下载，不解包
+#   bash scripts/fetch-assets.sh                 # 拉公开资产 + 解包到 /opt/mssk
+#   bash scripts/fetch-assets.sh --download-only # 只拉到 $DEST，不解包
 #
-# 可用环境变量覆盖：
-#   REPO=owner/repo    TAG=v1.0.0    DEST=/root/mssk-assets
+# 私有文件放这里（脚本会自动识别）：  /root/mssk-private/
+#   data-db.tar.gz      数据库 + WAL + 备份
+#   05-SECRETS.enc      加密凭据（口令问 owner 要）
+#
+# 可用环境变量：DEST=/root/mssk-assets  REPO=owner/repo  TAG=v1.0.0
 set -euo pipefail
 
-# 兼容 GH_TOKEN（gh CLI 优先读它）
-if [ -n "${GITHUB_TOKEN:-}" ] && [ -z "${GH_TOKEN:-}" ]; then export GH_TOKEN="$GITHUB_TOKEN"; fi
-
+DEST="${DEST:-/root/mssk-assets}"
 REPO="${REPO:-MSSK-TH/mssk-handover}"
 TAG="${TAG:-v1.0.0}"
-DEST="${DEST:-/root/mssk-assets}"
+PRIVATE_DIR="${PRIVATE_DIR:-/root/mssk-private}"
+HERE="$(cd "$(dirname "$0")" && pwd)"
 DOWNLOAD_ONLY=0
 [ "${1:-}" = "--download-only" ] && DOWNLOAD_ONLY=1
 
-FILES=(
-  "05-SECRETS.enc"
-  "console.tar.gz"
-  "data-db.tar.gz"
-  "mssk-image-web-webp.tar.gz"
-)
-
+PUBLIC_FILES=("console.tar.gz" "mssk-image-web-webp.tar.gz")
 mkdir -p "$DEST"
 
-echo "==> repo=$REPO tag=$TAG dest=$DEST"
-
-download_with_gh() {
-  gh release download "$TAG" --repo "$REPO" --dir "$DEST" --clobber \
-     --pattern '*.tar.gz' --pattern '05-SECRETS.enc'
-}
-
-download_with_curl() {
-  : "${GITHUB_TOKEN:?需要安装 gh CLI，或设置 GITHUB_TOKEN 环境变量（私有仓库的只读 token 即可）}"
-  for f in "${FILES[@]}"; do
+# ---------- 1. 公开资产 ----------
+echo "==> 从 Release 拉公开资产（repo=$REPO tag=$TAG）"
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  gh release download "$TAG" --repo "$REPO" --dir "$DEST" --clobber --pattern '*.tar.gz'
+elif [ -n "${GITHUB_TOKEN:-}" ]; then
+  for f in "${PUBLIC_FILES[@]}"; do
     echo "--> $f"
     curl -fsSL -H "Authorization: token $GITHUB_TOKEN" \
-      "https://github.com/${REPO}/releases/download/${TAG}/${f}" \
-      -o "${DEST}/${f}"
+      "https://github.com/${REPO}/releases/download/${TAG}/${f}" -o "$DEST/$f"
   done
-}
-
-if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-  echo "==> 用 gh CLI 下载"
-  download_with_gh
 else
-  echo "==> gh 不可用，改用 curl + GITHUB_TOKEN"
-  download_with_curl
+  # 公开仓库不需要认证
+  for f in "${PUBLIC_FILES[@]}"; do
+    echo "--> $f"
+    curl -fsSL "https://github.com/${REPO}/releases/download/${TAG}/${f}" -o "$DEST/$f"
+  done
 fi
 
-echo "==> 校验 sha256"
-MANIFEST="$(cd "$(dirname "$0")/.." && pwd)/assets/MANIFEST.txt"
+echo "==> 校验公开资产 sha256"
+MANIFEST="$HERE/../assets/MANIFEST.txt"
 if [ -f "$MANIFEST" ]; then
   if ( cd "$DEST" && sha256sum -c "$MANIFEST" >/dev/null 2>&1 ); then
-    echo "    ALL ASSETS OK"
+    echo "    ALL PUBLIC ASSETS OK"
   else
-    echo "    ⚠️ 校验失败，请删掉 $DEST 重新执行本脚本" >&2
-    ( cd "$DEST" && sha256sum -c "$MANIFEST" || true )
-    exit 1
+    echo "    ⚠️ 校验失败，删掉 $DEST 重跑" >&2
+    ( cd "$DEST" && sha256sum -c "$MANIFEST" || true ); exit 1
   fi
-else
-  echo "    (未找到 assets/MANIFEST.txt，跳过校验)"
+fi
+
+# ---------- 2. 私有资产（owner 私下给） ----------
+echo "==> 检查私有资产：$PRIVATE_DIR"
+HAVE_PRIVATE=1
+for f in "data-db.tar.gz" "05-SECRETS.enc"; do
+  if [ -f "$PRIVATE_DIR/$f" ]; then
+    echo "    ✔ $f"
+  else
+    echo "    ✘ 缺少 $f"
+    HAVE_PRIVATE=0
+  fi
+done
+if [ "$HAVE_PRIVATE" = "0" ]; then
+  cat >&2 <<EOF
+
+⚠️ 私有资产还不全。这两样不能放在公开仓库里，必须由 owner 单独发给你：
+     data-db.tar.gz     （数据库 + WAL + 备份）
+     05-SECRETS.enc     （加密凭据，解压口令也由 owner 给你）
+
+    放到 $PRIVATE_DIR/ 后重新执行本脚本。
+     现在可以先继续 07-MIGRATION.md 的 B1（体检）、B2（只拉公开资产已经完成），
+     等 owner 给你之后再回来做 B3。
+
+EOF
 fi
 
 if [ "$DOWNLOAD_ONLY" = "1" ]; then
-  echo "==> 只下载，未解包。文件在 $DEST"
-  ls -lh "$DEST"
+  echo "==> 只准备资产，未解包。位置：$DEST"
+  ls -lh "$DEST" | sed '1d'
   exit 0
 fi
 
-echo "==> 解包到目标位置"
-# 控制台静态产物
+# ---------- 3. 解包 ----------
+echo "==> 解包公开资产"
 mkdir -p /opt/mssk/console
 tar xzf "$DEST/console.tar.gz" -C /opt/mssk/console
-echo "    console  -> /opt/mssk/console ($(find /opt/mssk/console -type f | wc -l) files)"
+echo "    console -> /opt/mssk/console（$(find /opt/mssk/console -type f | wc -l) 文件）"
 
-# 数据库（若 owner 提供了更新的库，请手动覆盖 /opt/mssk/new-api/data/one-api.db）
-mkdir -p /opt/mssk/new-api/data
-tar xzf "$DEST/data-db.tar.gz" -C /opt/mssk/new-api/data
-echo "    data     -> /opt/mssk/new-api/data"
-
-# 镜像
-echo "==> 导入镜像（需要 docker）"
 if command -v docker >/dev/null 2>&1; then
+  echo "==> 导入生图镜像"
   docker load -i "$DEST/mssk-image-web-webp.tar.gz"
   docker images | grep image-web || true
 else
-  echo "    ⚠️ 未检测到 docker，先装 docker 再手动执行："
-  echo "       docker load -i $DEST/mssk-image-web-webp.tar.gz"
+  echo "    ⚠️ 未检测到 docker，装好后执行：docker load -i $DEST/mssk-image-web-webp.tar.gz"
+fi
+
+if [ "$HAVE_PRIVATE" = "1" ]; then
+  echo "==> 解包数据库"
+  mkdir -p /opt/mssk/new-api/data
+  tar xzf "$PRIVATE_DIR/data-db.tar.gz" -C /opt/mssk/new-api/data
+  chown -R 1000:1000 /opt/mssk/new-api/data 2>/dev/null || true
+  echo "    data -> /opt/mssk/new-api/data"
 fi
 
 cat <<EOF
 
-==> 完成。凭据包在 $DEST/05-SECRETS.enc（未解，需 owner 给的口令）
+==> 完成
+私有凭据包：$PRIVATE_DIR/05-SECRETS.enc（未解，口令由 owner 给，见 07-MIGRATION.md 的 B3）
 
-下一步：
-  1) 让 owner 确认域名/端口（见 00-YOU-DO-THIS.md）
-  2) 打开 07-MIGRATION.md，从阶段 A 开始
+下一步：打开 07-MIGRATION.md，从阶段 A 开始。
 
 EOF

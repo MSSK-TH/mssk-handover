@@ -38,12 +38,19 @@ bash scripts/fetch-assets.sh
 
 脚本会下载、校验 sha256、并自动解到 `/opt/mssk/`。看到 `ALL ASSETS OK` 才继续。
 
+**公开部分**（脚本自动从 Release 拉，无需令牌）：
+
 | 资产 | 大小 | 是什么 | 缺了会怎样 |
 |---|---|---|---|
 | `console.tar.gz` | 18.4 MB | 控制台前端产物 | 网站白屏 |
-| `data-db.tar.gz` | 19.6 MB | 数据库（用户/令牌/渠道/日志） | 系统是空的 |
 | `mssk-image-web-webp.tar.gz` | 83 MB | 生图站镜像（Hub 上没有） | 生图站起不来 |
-| `05-SECRETS.enc` | 18 KB | 加密凭据（口令另给） | 生图和 shim 缺配置 |
+
+**私有部分**（**不在仓库里**，owner 会单独发给你，放到 `/root/mssk-private/`）：
+
+| 什么 | 大小 | 是什么 | 备注 |
+|---|---|---|---|
+| `data-db.tar.gz` | 19.6 MB | 数据库 + WAL + 备份（含用户/令牌/渠道密钥） | 含敏感数据，绝不能进公开仓库 |
+| `05-SECRETS.enc` | 18 KB | 加密凭据（生图配置 + 网页版 Cookie） | 解压口令由 owner 单独给 |
 
 ---
 

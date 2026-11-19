@@ -100,7 +100,10 @@ ss -ltnp | grep -vE ':22\b' || echo "only ssh listening — good"
 
 ---
 
-## B2 · 拉仓库与大文件资产（10 分钟）
+## B2 · 拉仓库与公开资产（10 分钟）
+
+> 私有资产（`data-db.tar.gz`、`05-SECRETS.enc`）**不在仓库里**，由 owner 单独发给你，
+> 放到 `/root/mssk-private/`。这一步只处理公开资产，私有资产在 B3 用。
 
 仓库里只有文档和配置（约 1.4 MB）。大文件走 Release 附件，一条命令拉下来：
 
@@ -156,6 +159,19 @@ cp -a 02-CONFIG/tools/.   /opt/mssk/tools/
 [ -d 02-CONFIG/scripts ] && cp -a 02-CONFIG/scripts/. /opt/mssk/scripts/
 chmod +x /opt/mssk/tools/*.sh 2>/dev/null
 chown -R 1000:1000 /opt/mssk/new-api/data 2>/dev/null || true
+```
+
+**私有资产到位后，解包数据库与凭据**：
+
+```bash
+# owner 私下发的两个文件（放到 /root/mssk-private/）
+ls -lh /root/mssk-private/
+#   data-db.tar.gz     05-SECRETS.enc
+
+mkdir -p /opt/mssk/new-api/data
+tar xzf /root/mssk-private/data-db.tar.gz -C /opt/mssk/new-api/data
+chown -R 1000:1000 /opt/mssk/new-api/data 2>/dev/null || true
+ls -lh /opt/mssk/new-api/data/one-api.db*      # 期望 db ~119MB + wal
 ```
 
 **关于数据库的新鲜度，先问 owner 一句话**：
